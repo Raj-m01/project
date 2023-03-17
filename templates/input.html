@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WhatsApp Chat Analyzer</title>
+    </head>
+    <body>
+        <h1>WhatsApp Chat Analyzer</h1>
+        <form method="post" action="analyze/" enctype="multipart/form-data">
+            <label for="file">Choose a file:</label><br>
+            <input type="file" id="file" name="file"><br><br>
+            <label for="user">Show analysis wrt:</label>
+            <select name="user" id="user">
+                <option value="Overall">Overall</option>
+                <option value="User1">User1</option>
+                <option value="User2">User2</option>
+                <option value="User3">User3</option>
+            </select><br><br>
+            <input type="submit" value="Show Analysis">
+        </form>
+
+        <div id="stats"></div>
+        <div id="timeline"></div>
+        <div id="map"></div>
+        <div id="users"></div>
+        <div id="wordcloud"></div>
+        <div id="common-words"></div>
+        <div id="emoji"></div>
+        <div id="sentiment"></div>
+    </body>
+</html>

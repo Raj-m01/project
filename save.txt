@@ -9,31 +9,10 @@ from analyze import analyzer
 import emoji
 
 import pandas as pd
-import numpy as np
-import re
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import SnowballStemmer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error
-
-
-from nltk.stem import WordNetLemmatizer
-
-
-from nltk.tokenize import word_tokenize
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
 nltk.download('vader_lexicon')
-nltk.download('stopwords')
-nltk.download('punkt')
-nltk.download('wordnet')
-
 st.sidebar.title("Whatsapp Chat Analyzer")
 
 uploaded_file = st.sidebar.file_uploader("Choose a file")
@@ -46,6 +25,9 @@ if uploaded_file is not None:
     bytes_data = uploaded_file.getvalue()
     data = bytes_data.decode("utf-8")
     df = preprocessor.preprocess(data)
+
+    print("*******************************")
+    print(df.columns)
 
     # fetch unique users
     user_list = df['user'].unique().tolist()
@@ -208,6 +190,7 @@ if uploaded_file is not None:
         df['emojis'] = df['message'].apply(extract_emojis)
         # group the DataFrame by "user" and count the number of emojis sent by each user
         # emoji_counts = df.groupby('user')['emojis'].apply(lambda x: ''.join(x)).apply(lambda x: len(re.findall(r'[\U0001F600-\U0001F64F]', x)))
+        print("************************************")
         emoji_counts = df.groupby('user')['emojis'].apply(lambda x: ''.join(x)).apply(lambda x: len(re.findall(r'[\U0001F600-\U0001F64F]', x))).sort_values(ascending=False)
 
         st.write("Users emojis count")
@@ -218,7 +201,7 @@ if uploaded_file is not None:
         # Sentiment Analysis Results
         sentiment_df = df.groupby('user')['sentiment'].mean().reset_index()
         st.title("Sentiment Analysis")
-        fig, ax = plt.subplots(figsize=(20,20))
+        fig, ax = plt.subplots(figsize=(25, 25))
         ax.bar(sentiment_df['user'], sentiment_df['sentiment'], color='blue')
         plt.xticks(rotation='vertical')
         plt.subplots_adjust(bottom=0.7)
@@ -226,113 +209,3 @@ if uploaded_file is not None:
         ax.set_ylabel('Sentiment Score', fontsize=14)
         ax.set_title('Sentiment Analysis', fontsize=16)
         st.pyplot(fig)
-
-
-        
-
-#  ************************** Message Classification 
-
-
-       
-        # Define categories and keywords for each category
-        categories = {
-            'questions': ['?', 'what', 'why', 'how', 'when', 'who'],
-            'announcements': ['announcement', 'important', 'urgent', 'reminder'],
-            'greetings': ['hi', 'hello', 'hey', 'morning', 'evening'],
-            'media': ['image', 'video', 'gif', 'media'],
-            'links': ['link', 'url', 'website']
-        }
-
-   
-        stop_words = set(stopwords.words('english'))
-        lemmatizer = WordNetLemmatizer()
-
-        def preprocess_text(text):
-            words = word_tokenize(text.lower())
-            words = [w for w in words if not w in stop_words and w.isalpha()]
-            words = [lemmatizer.lemmatize(w) for w in words]
-            return ' '.join(words)
-
-        df['processed_message'] = df['message'].apply(preprocess_text)
-
-        # Assign categories to each message
-        def categorize_message(text):
-            for category, keywords in categories.items():
-                for keyword in keywords:
-                    if keyword in text:
-                        return category
-            return 'other'
-
-        df['category'] = df['processed_message'].apply(categorize_message)
-
-        # Train a Random Forest classifier for message classification
-        X_train, X_test, y_train, y_test = train_test_split(df['processed_message'], df['category'], test_size=0.2, random_state=42)
-        vectorizer = CountVectorizer()
-        X_train = vectorizer.fit_transform(X_train)
-        X_test = vectorizer.transform(X_test)
-        clf = RandomForestClassifier(n_estimators=100, random_state=42)
-
-        clf.fit(X_train, y_train)
-
-        # y_pred = clf.predict(X_test)
-        # accuracy = accuracy_score(y_test, y_pred)
-        # print('@@@@@@@@@@@@@@@@@@@@@@@@@Accuracy:', accuracy)
-        # df['category_pred'] = y_pred
-        # print(df[['message', 'category_pred']])
-
-        X = vectorizer.transform(df['processed_message'])
-        categories_pred = clf.predict(X)
-        df['category_pred'] = categories_pred
-
-        # Print the classified result
-        print(df[['message', 'category_pred']])
-
-
-
-
-
-
-
-
- # ************************** new feat
-
-'''
-# CHAT SUMMARY
-
-        # tokenize and preprocess the messages
-        lemmatizer = WordNetLemmatizer()
-        stop_words = stopwords.words('english')
-        df['processed'] = df['message'].apply(lambda x: [lemmatizer.lemmatize(w) for w in nltk.word_tokenize(x.lower()) if w.isalpha() and w not in stop_words])
-
-        # create a bag-of-words representation of the messages
-        cv = CountVectorizer(tokenizer=lambda x: x, preprocessor=lambda x: x)
-        cv.fit(df['processed'])
-        bow = cv.transform(df['processed'])
-
-        # train LDA model to identify topics
-        lda_model = LatentDirichletAllocation(n_components=10, max_iter=10, learning_method='online', random_state=42)
-        lda_model.fit(bow)
-
-        # print topics identified by LDA model
-        print("Topics found via LDA:")
-        for idx, topic in enumerate(lda_model.components_):
-            print(f"Topic {idx}:")
-            print([cv.get_feature_names()[i] for i in topic.argsort()[:-11:-1]])
-            print('\n')
-
-        # identify topic for each message
-        df['topic'] = lda_model.transform(bow).argmax(axis=1)
-
-        # extract most representative message for each topic
-        summary = ''
-        for i in range(lda_model.n_components):
-            topic_messages = df.loc[df['topic'] == i, 'message']
-            if not topic_messages.empty:
-                top_message = topic_messages.value_counts().index[0]
-                summary += f"Topic {i}: {top_message}\n\n"
-
-        # print chat summary
-        print("Chat Summary:")
-        print(summary)
-        '''
-
